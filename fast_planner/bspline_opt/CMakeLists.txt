@@ -3,6 +3,7 @@ project(bspline_opt)
 
 find_package(Eigen3 REQUIRED)
 find_package(PCL 1.7 REQUIRED)
+find_package(nlopt)
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
@@ -25,7 +26,8 @@ include_directories(
     include 
     ${catkin_INCLUDE_DIRS}
     ${Eigen3_INCLUDE_DIRS} 
-    ${PCL_INCLUDE_DIRS}
+    ${PCL_INCLUDE_DIRS}    
+    ${nlopt_INCLUDE_DIRS}
 )
 
 set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS} -O3 -Wall")
