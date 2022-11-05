@@ -51,6 +51,9 @@ include_directories(
   ${PCL_INCLUDE_DIRS}
 )
 
+catkin_install_python(PROGRAMS script/camera_pose_publisher.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
 add_executable(fast_planner_node
   src/fast_planner_node.cpp 

@@ -2,8 +2,8 @@
 
 <node pkg="tf" type="static_transform_publisher" name="world_map_linker" args="0 0 0 0 0 0 world map 100" />
 <!-- <node pkg="tf" type="static_transform_publisher" name="tf_camera" args="0.0 0 0.2 3.14159 3.14159 0 base_link camera_link 33"/> -->
-<node pkg="tf" type="static_transform_publisher" name="tf_camera" args="0.1 0 0.0 -1.57 0 -1.57 base_link camera_link 33"/>
-
+<!-- <node pkg="tf" type="static_transform_publisher" name="tf_camera" args="0.1 0 0.0 -1.57 0 -1.57 base_link camera_link 33"/> -->
+<node pkg="tf" type="static_transform_publisher" name="tf_camera" args="0.1 0 0.0 -1.57 0 -1.57 base_link d455_link 33"/>
 
 <!-- 90 = 1.5708, 180 = 3.14159 -->
   <!-- size of map, change the size in x, y, z according to your application -->
@@ -31,19 +31,21 @@
     <!-- don't set cloud_topic if you already set these ones! -->
     <!-- <arg name="camera_pose_topic" value="/pcl_render_node/camera_pose"/> -->
 
-    <arg name="camera_pose_topic" default="/camera/pose"/>
+    <!-- <arg name="camera_pose_topic" default="/camera/pose"/> -->
+    <arg name="camera_pose_topic" default="/d455/pose"/>
     <!-- <arg name="depth_topic" value="/pcl_render_node/depth"/> -->
-    <arg name="depth_topic" value="/camera/depth/image_raw"/>
+    <!-- <arg name="depth_topic" value="/camera/depth/image_raw"/> -->
+    <arg name="depth_topic" value="/d455/depth/image_rect_raw"/>
 
     <!-- topic of point cloud measurement, such as from LIDAR  -->
     <!-- don't set camera pose and depth, if you already set this one! -->
     <arg name="cloud_topic" value="/pcl_render_node/cloud"/>
 
     <!-- intrinsic params of the depth camera -->
-    <arg name="cx" value="321.04638671875"/>
-    <arg name="cy" value="243.44969177246094"/>
-    <arg name="fx" value="387.229248046875"/>
-    <arg name="fy" value="387.229248046875"/>
+    <arg name="cx" value="316.062"/>
+    <arg name="cy" value="246.174"/>
+    <arg name="fx" value="390.358"/>
+    <arg name="fy" value="390.358"/>
 
     <!-- maximum velocity and acceleration the drone will reach -->
     <arg name="max_vel" value="1.0" />
@@ -103,8 +105,11 @@
   <!-- This node publishes tf from parent_frame to child_frame-->
   <node pkg="plan_manage" name="camera_pose_publisher" type="camera_pose_publisher.py" output="screen">
       <param name="parent_frame" value="world" />
-      <param name="child_frame" value="camera_link" />
-      <param name="pose_topic" value="camera/pose" />
+      <!-- <param name="child_frame" value="camera_link" /> -->
+      <param name="child_frame" value="d455_link" />
+      <!-- <param name="pose_topic" value="camera/pose" /> -->
+      <param name="pose_topic" value="d455/pose" />
+
   </node>
 
   <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d $(find plan_manage)/config/traj.rviz" />
