@@ -1,28 +1,3 @@
-/**
-* This file is part of Fast-Planner.
-*
-* Copyright 2019 Boyu Zhou, Aerial Robotics Group, Hong Kong University of Science and Technology, <uav.ust.hk>
-* Developed by Boyu Zhou <bzhouai at connect dot ust dot hk>, <uv dot boyuzhou at gmail dot com>
-* for more information see <https://github.com/HKUST-Aerial-Robotics/Fast-Planner>.
-* If you use this code, please cite the respective publications as
-* listed on the above website.
-*
-* Fast-Planner is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* Fast-Planner is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* along with Fast-Planner. If not, see <http://www.gnu.org/licenses/>.
-*/
-
-
-
 #include "plan_env/sdf_map.h"
 
 // #define current_img_ md_.depth_image_[image_cnt_ & 1]
@@ -71,7 +46,7 @@ void SDFMap::initMap(ros::NodeHandle& nh) {
   node_.param("sdf_map/show_esdf_time", mp_.show_esdf_time_, false);
   node_.param("sdf_map/pose_type", mp_.pose_type_, 1);
 
-  node_.param("sdf_map/frame_id", mp_.frame_id_, string("world"));
+  node_.param("sdf_map/frame_id", mp_.frame_id_, string("map"));
   node_.param("sdf_map/local_bound_inflate", mp_.local_bound_inflate_, 1.0);
   node_.param("sdf_map/local_map_margin", mp_.local_map_margin_, 1);
   node_.param("sdf_map/ground_height", mp_.ground_height_, 1.0);
@@ -857,10 +832,25 @@ void SDFMap::odomCallback(const nav_msgs::OdometryConstPtr& odom) {
   md_.has_odom_ = true;
 }
 
-void SDFMap::cloudCallback(const sensor_msgs::PointCloud2ConstPtr& img) {
+// Create a rotation matrix (euler angles) for the point cloud.
+// It is going to be rotated directly after the callback to try and fix the
+// problem
+Eigen::Affine3f create_rotation_matrix(double ax, double ay, double az) {
+	Eigen::Affine3f rx = Eigen::Affine3f(Eigen::AngleAxisf(ax, Eigen::Vector3f(1, 0, 0)));
+	Eigen::Affine3f ry = Eigen::Affine3f(Eigen::AngleAxisf(ay, Eigen::Vector3f(0, 1, 0)));
+	Eigen::Affine3f rz = Eigen::Affine3f(Eigen::AngleAxisf(az, Eigen::Vector3f(0, 0, 1)));
+	return rz * ry * rx;
+}
 
+Eigen::Affine3f rot_cloud = create_rotation_matrix(3.14159, -1.5708, 3.14159); //  rotate camera
+
+void SDFMap::cloudCallback(const sensor_msgs::PointCloud2ConstPtr& img) {
   pcl::PointCloud<pcl::PointXYZ> latest_cloud;
   pcl::fromROSMsg(*img, latest_cloud);
+
+  pcl::PointCloud<pcl::PointXYZ> latest_cloud_norot; // new cloud
+  pcl::transformPointCloud(latest_cloud, latest_cloud_norot, rot_cloud); // transform point cloud
+  latest_cloud = latest_cloud_norot; // 
 
   md_.has_cloud_ = true;
 
