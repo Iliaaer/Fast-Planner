@@ -65,7 +65,7 @@ vector<Eigen::Vector3d> traj_cmd_, traj_real_;
 void displayTrajWithColor(vector<Eigen::Vector3d> path, double resolution, Eigen::Vector4d color,
                           int id) {
     visualization_msgs::Marker mk;
-    mk.header.frame_id = "map";
+    mk.header.frame_id = "world";
     mk.header.stamp = ros::Time::now();
     mk.type = visualization_msgs::Marker::SPHERE_LIST;
     mk.action = visualization_msgs::Marker::DELETE;
@@ -246,7 +246,7 @@ void cmdCallback(const ros::TimerEvent& e) {
     }
 
     cmd.header.stamp = time_now;
-    cmd.header.frame_id = "map";
+    cmd.header.frame_id = "world";
     cmd.trajectory_flag = quadrotor_msgs::PositionCommand::TRAJECTORY_STATUS_READY;
     cmd.trajectory_id = traj_id_;
 
