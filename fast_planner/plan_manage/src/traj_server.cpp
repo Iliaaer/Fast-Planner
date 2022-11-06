@@ -1,28 +1,3 @@
-/**
-* This file is part of Fast-Planner.
-*
-* Copyright 2019 Boyu Zhou, Aerial Robotics Group, Hong Kong University of Science and Technology, <uav.ust.hk>
-* Developed by Boyu Zhou <bzhouai at connect dot ust dot hk>, <uv dot boyuzhou at gmail dot com>
-* for more information see <https://github.com/HKUST-Aerial-Robotics/Fast-Planner>.
-* If you use this code, please cite the respective publications as
-* listed on the above website.
-*
-* Fast-Planner is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* Fast-Planner is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* along with Fast-Planner. If not, see <http://www.gnu.org/licenses/>.
-*/
-
-
-
 #include "bspline/non_uniform_bspline.h"
 #include "nav_msgs/Odometry.h"
 #include "plan_manage/Bspline.h"
@@ -31,15 +6,18 @@
 #include "visualization_msgs/Marker.h"
 #include <ros/ros.h>
 #include "geometry_msgs/PoseStamped.h"
+#include <std_msgs/Bool.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 
-ros::Publisher cmd_vis_pub, pos_cmd_pub, traj_pub, clover_cmd_pub;
+ros::Publisher cmd_vis_pub, pos_cmd_pub, traj_pub;
+
 
 nav_msgs::Odometry odom;
-
 quadrotor_msgs::PositionCommand cmd;
 
+ros::Publisher clover_cmd_pub;
+bool mavros_position_sub = true;
 geometry_msgs::PoseStamped cmd_clover;
 
 
@@ -65,7 +43,7 @@ vector<Eigen::Vector3d> traj_cmd_, traj_real_;
 void displayTrajWithColor(vector<Eigen::Vector3d> path, double resolution, Eigen::Vector4d color,
                           int id) {
     visualization_msgs::Marker mk;
-    mk.header.frame_id = "map";
+    mk.header.frame_id = "world";
     mk.header.stamp = ros::Time::now();
     mk.type = visualization_msgs::Marker::SPHERE_LIST;
     mk.action = visualization_msgs::Marker::DELETE;
@@ -102,7 +80,7 @@ void displayTrajWithColor(vector<Eigen::Vector3d> path, double resolution, Eigen
 void drawCmd(const Eigen::Vector3d& pos, const Eigen::Vector3d& vec, const int& id,
              const Eigen::Vector4d& color) {
     visualization_msgs::Marker mk_state;
-    mk_state.header.frame_id = "map";
+    mk_state.header.frame_id = "world";
     mk_state.header.stamp = ros::Time::now();
     mk_state.id = id;
     mk_state.type = visualization_msgs::Marker::ARROW;
@@ -207,6 +185,10 @@ void visCallback(const ros::TimerEvent& e) {
     displayTrajWithColor(traj_cmd_, 0.05, Eigen::Vector4d(0, 1, 0, 1), 2);
 }
 
+void flagMavrosPositionCallbck(const std_msgs::Bool& Reached){
+    mavros_position_sub = Reached.data;
+}
+
 void cmdCallback(const ros::TimerEvent& e) {
     /* no publishing before receive traj_ */
 
@@ -246,7 +228,7 @@ void cmdCallback(const ros::TimerEvent& e) {
     }
 
     cmd.header.stamp = time_now;
-    cmd.header.frame_id = "map";
+    cmd.header.frame_id = "world";
     cmd.trajectory_flag = quadrotor_msgs::PositionCommand::TRAJECTORY_STATUS_READY;
     cmd.trajectory_id = traj_id_;
 
@@ -264,9 +246,6 @@ void cmdCallback(const ros::TimerEvent& e) {
 
     cmd.yaw = yaw;
     cmd.yaw_dot = yawdot;
-
-
-
 
     auto pos_err = pos_f - pos;
     // if (pos_err.norm() > 1e-3) {
@@ -295,6 +274,7 @@ void cmdCallback(const ros::TimerEvent& e) {
     cmd_clover.pose.position.x = cmd.position.x;
     cmd_clover.pose.position.y = cmd.position.y;
     cmd_clover.pose.position.z = cmd.position.z;
+
     tf2::Quaternion myQuaternion;
     myQuaternion.setRPY(0, 0, yaw);
     myQuaternion=myQuaternion.normalize();
@@ -305,8 +285,7 @@ void cmdCallback(const ros::TimerEvent& e) {
 
 //    ros::ServiceClient client = n.serviceClient<srv::Navigate>("add_two_ints");
 
-    clover_cmd_pub.publish(cmd_clover);
-
+    if (mavros_position_sub)    clover_cmd_pub.publish(cmd_clover);
 
     traj_cmd_.push_back(pos);
     if (traj_cmd_.size() > 10000) traj_cmd_.erase(traj_cmd_.begin(), traj_cmd_.begin() + 1000);
@@ -326,8 +305,8 @@ int main(int argc, char** argv) {
     pos_cmd_pub = node.advertise<quadrotor_msgs::PositionCommand>("/position_cmd", 50);
     traj_pub = node.advertise<visualization_msgs::Marker>("planning/travel_traj", 10);
 
+    ros::Subscriber flag_mavros_sub = node.subscribe("/flag/mavros/position", 10, flagMavrosPositionCallbck);
     clover_cmd_pub = node.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 50);
-
 
     //
     ros::Timer cmd_timer = node.createTimer(ros::Duration(0.01), cmdCallback);
