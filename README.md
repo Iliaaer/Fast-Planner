@@ -18,7 +18,7 @@ sudo apt-get install -y libarmadillo-dev
 sudo apt install -y --fix-missing ros-noetic-pcl-conversions ros-noetic-pcl-ros
 git clone --single-branch -b ubuntu-20.04 https://github.com/Iliaaer/Fast-Planner.git
 cd ../ 
-catkin_make -DCMAKE_CXX_STANDARD=14
+catkin_make 
 bash ~./bashrc
 ```
 ## Запуск пакетов:
