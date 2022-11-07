@@ -83,5 +83,12 @@
 
     <arg name="odometry_topic" value="$(arg odom_topic)" />
   </include>
+  <node pkg="plan_manage" name="camera_pose_publisher" type="camera_pose_publisher.py" output="screen">
+      <param name="parent_frame" value="world" />
+      <!-- <param name="child_frame" value="camera_link" /> -->
+      <param name="child_frame" value="d455_link" />
+      <!-- <param name="pose_topic" value="camera/pose" /> -->
+      <param name="pose_topic" value="d455/pose" />
 
+  </node>
 </launch>
