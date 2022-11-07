@@ -19,7 +19,7 @@ sudo apt install -y --fix-missing ros-noetic-pcl-conversions ros-noetic-pcl-ros
 git clone https://github.com/Iliaaer/Fast-Planner
 cd ../ 
 catkin_make -DCMAKE_CXX_STANDARD=14
-bash ~./bashrc
+source ~/.bashrc
 ```
 ## Запуск пакетов:
 Запуск визуализации:
