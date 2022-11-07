@@ -19,7 +19,7 @@ sudo apt install -y --fix-missing ros-noetic-pcl-conversions ros-noetic-pcl-ros
 git clone --single-branch -b ubuntu-20.04 https://github.com/Iliaaer/Fast-Planner.git
 cd ../ 
 catkin_make 
-bash ~./bashrc
+source ~/.bashrc
 ```
 ## Запуск пакетов:
 Запуск визуализации:
