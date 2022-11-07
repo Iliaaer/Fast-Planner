@@ -14,7 +14,7 @@
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <tf/transform_datatypes.h>
 #include <tf2/utils.h>
-
+#include <cmath>
 
 ros::Publisher cmd_vis_pub, pos_cmd_pub, traj_pub;
 
@@ -23,10 +23,13 @@ nav_msgs::Odometry odom;
 quadrotor_msgs::PositionCommand cmd;
 
 
+quadrotor_msgs::PositionCommand cmd_last;
 ros::Publisher clover_cmd_pub;
 bool mavros_position_sub = true;
 // geometry_msgs::PoseStamped cmd_clover;
-mavros_msgs::PositionTarget cmd_clover;
+mavros_msgs::PositionTarget cmd_clover, cmd_clover_last;
+geometry_msgs::PoseStamped cmd_move_base;
+bool flag_move_base = false;
 
 
 // double pos_gain[3] = {5.7, 5.7, 6.2};
@@ -192,114 +195,167 @@ void visCallback(const ros::TimerEvent& e) {
 
     displayTrajWithColor(traj_cmd_, 0.05, Eigen::Vector4d(0, 1, 0, 1), 2);
 }
+
+void move_base_simpleCallbck(const geometry_msgs::PoseStamped& msg) {
+    cmd_move_base = msg;
+    flag_move_base = true;
+//        cmd_clover.yaw -= cmd_move_base.position;
+    double delta_x = cmd_move_base.pose.position.x - cmd_clover.position.x;
+    double delta_y = cmd_move_base.pose.position.y - cmd_clover.position.y;
+    if (abs(delta_y) > 0.001) {
+        // cout << endl << endl << "!!!!!!!!!!!!!!!!!!!!!![INFO] CMD = " << atan(delta_x / delta_y) << endl << endl;
+        cmd_clover_last.yaw -= atan(delta_x / delta_y);
+        clover_cmd_pub.publish(cmd_clover_last);
+
+        cmd_last.yaw = cmd_clover_last.yaw;
+        pos_cmd_pub.publish(cmd_last);
+
+        // clover_cmd_pub.publish(cmd_clover);
+    }
+    // flag_move_base = false;
+}
+
 void flagMavrosPositionCallbck(const std_msgs::Bool& Reached){
     mavros_position_sub = Reached.data; // true or fals
 }
 
 void cmdCallback(const ros::TimerEvent& e) {
-    if (!receive_traj_) return;
-
-    ros::Time time_now = ros::Time::now();
-    double t_cur = (time_now - start_time_).toSec();
-
-    Eigen::Vector3d pos, vel, acc, pos_f;
-    double yaw, yawdot;
-
-    if (t_cur < traj_duration_ && t_cur >= 0.0) {
-        pos = traj_[0].evaluateDeBoorT(t_cur);
-        vel = traj_[1].evaluateDeBoorT(t_cur);
-        acc = traj_[2].evaluateDeBoorT(t_cur);
-        yaw = traj_[3].evaluateDeBoorT(t_cur)[0];
-        yawdot = traj_[4].evaluateDeBoorT(t_cur)[0];
-
-        double tf = min(traj_duration_, t_cur + 2.0);
-        pos_f = traj_[0].evaluateDeBoorT(tf);
-
-    } else if (t_cur >= traj_duration_) {
-        /* hover when finish traj_ */
-        pos = traj_[0].evaluateDeBoorT(traj_duration_);
-        vel.setZero();
-        acc.setZero();
-        yaw = traj_[3].evaluateDeBoorT(traj_duration_)[0];
-        yawdot = traj_[4].evaluateDeBoorT(traj_duration_)[0];
-
-        pos_f = pos;
-
-    } else {
-        cout << "[Traj server]: invalid time." << endl;
+    if (flag_move_base) {
+        ros::Duration(1.0).sleep();
+        flag_move_base = false;
     }
+    else{
+        if (!receive_traj_) return;
 
-    cmd.header.stamp = time_now;
-    cmd.header.frame_id = "world";
-    cmd.trajectory_flag = quadrotor_msgs::PositionCommand::TRAJECTORY_STATUS_READY;
-    cmd.trajectory_id = traj_id_;
+        ros::Time time_now = ros::Time::now();
+        double t_cur = (time_now - start_time_).toSec();
 
-    cmd.position.x = pos(0);
-    cmd.position.y = pos(1);
-    cmd.position.z = pos(2);
+        Eigen::Vector3d pos, vel, acc, pos_f;
+        double yaw, yawdot;
 
-    cmd.velocity.x = vel(0);
-    cmd.velocity.y = vel(1);
-    cmd.velocity.z = vel(2);
+        if (t_cur < traj_duration_ && t_cur >= 0.0) {
+            pos = traj_[0].evaluateDeBoorT(t_cur);
+            vel = traj_[1].evaluateDeBoorT(t_cur);
+            acc = traj_[2].evaluateDeBoorT(t_cur);
+            yaw = traj_[3].evaluateDeBoorT(t_cur)[0];
+            yawdot = traj_[4].evaluateDeBoorT(t_cur)[0];
 
-    cmd.acceleration.x = acc(0);
-    cmd.acceleration.y = acc(1);
-    cmd.acceleration.z = acc(2);
+            double tf = min(traj_duration_, t_cur + 2.0);
+            pos_f = traj_[0].evaluateDeBoorT(tf);
 
-    cmd.yaw = yaw;
-    cmd.yaw_dot = yawdot;
+        } else if (t_cur >= traj_duration_) {
+            /* hover when finish traj_ */
+            pos = traj_[0].evaluateDeBoorT(traj_duration_);
+            vel.setZero();
+            acc.setZero();
+            yaw = traj_[3].evaluateDeBoorT(traj_duration_)[0];
+            yawdot = traj_[4].evaluateDeBoorT(traj_duration_)[0];
 
-    auto pos_err = pos_f - pos;
-    // if (pos_err.norm() > 1e-3) {
-    //   cmd.yaw = atan2(pos_err(1), pos_err(0));
-    // } else {
-    //   cmd.yaw = last_yaw_;
-    // }
-    // cmd.yaw_dot = 1.0;
+            pos_f = pos;
 
-    last_yaw_ = cmd.yaw;
+        } else {
+            cout << "[Traj server]: invalid time." << endl;
+        }
 
-    pos_cmd_pub.publish(cmd);
+        cmd.header.stamp = time_now;
+        cmd.header.frame_id = "world";
+        cmd.trajectory_flag = quadrotor_msgs::PositionCommand::TRAJECTORY_STATUS_READY;
+        cmd.trajectory_id = traj_id_;
 
-    // draw cmd
+        cmd.position.x = pos(0);
+        cmd.position.y = pos(1);
+        cmd.position.z = pos(2);
 
-    // drawCmd(pos, vel, 0, Eigen::Vector4d(0, 1, 0, 1));
-    // drawCmd(pos, acc, 1, Eigen::Vector4d(0, 0, 1, 1));
+        cmd.velocity.x = vel(0);
+        cmd.velocity.y = vel(1);
+        cmd.velocity.z = vel(2);
 
-    Eigen::Vector3d dir(cos(yaw), sin(yaw), 0.0);
-    drawCmd(pos, 2 * dir, 2, Eigen::Vector4d(1, 1, 0, 0.7));
-    // drawCmd(pos, pos_err, 3, Eigen::Vector4d(1, 1, 0, 0.7));
+        cmd.acceleration.x = acc(0);
+        cmd.acceleration.y = acc(1);
+        cmd.acceleration.z = acc(2);
 
-    // cmd_clover.header.stamp = cmd.header.stamp;
-    // cmd_clover.header.frame_id = "map";
+        cmd.yaw = yaw;
+        cmd.yaw_dot = yawdot;
 
-    // cmd_clover.pose.position.x = cmd.position.x;
-    // cmd_clover.pose.position.y = cmd.position.y;
-    // cmd_clover.pose.position.z = cmd.position.z;
+        auto pos_err = pos_f - pos;
+        // if (pos_err.norm() > 1e-3) {
+        //   cmd.yaw = atan2(pos_err(1), pos_err(0));
+        // } else {
+        //   cmd.yaw = last_yaw_;
+        // }
+        // cmd.yaw_dot = 1.0;
 
-    // tf2::Quaternion myQuaternion;
-    // myQuaternion.setRPY(0, 0, yaw);
-    // myQuaternion=myQuaternion.normalize();
-    // cmd_clover.pose.orientation.x = myQuaternion[0];
-    // cmd_clover.pose.orientation.y = myQuaternion[1];
-    // cmd_clover.pose.orientation.z = myQuaternion[2];
-    // cmd_clover.pose.orientation.w = myQuaternion[3];
+        last_yaw_ = cmd.yaw;
+        // draw cmd
 
-    cmd_clover.header.stamp = cmd.header.stamp;
-    cmd_clover.header.frame_id = "map";
-    cmd_clover.coordinate_frame = 1;
-    cmd_clover.position.x = cmd.position.x;
-    cmd_clover.position.y = cmd.position.y;
-    cmd_clover.position.z = cmd.position.z;
-    cmd_clover.velocity = cmd.velocity;
-    cmd_clover.acceleration_or_force = cmd.acceleration;
-    cmd_clover.yaw = cmd.yaw;
-    cmd_clover.yaw_rate = cmd.yaw_dot;
+        // drawCmd(pos, vel, 0, Eigen::Vector4d(0, 1, 0, 1));
+        // drawCmd(pos, acc, 1, Eigen::Vector4d(0, 0, 1, 1));
 
-    if (mavros_position_sub)    clover_cmd_pub.publish(cmd_clover);
+        Eigen::Vector3d dir(cos(yaw), sin(yaw), 0.0);
+        drawCmd(pos, 2 * dir, 2, Eigen::Vector4d(1, 1, 0, 0.7));
+        // drawCmd(pos, pos_err, 3, Eigen::Vector4d(1, 1, 0, 0.7));
 
-    traj_cmd_.push_back(pos);
-    if (traj_cmd_.size() > 10000) traj_cmd_.erase(traj_cmd_.begin(), traj_cmd_.begin() + 1000);
+        // cmd_clover.header.stamp = cmd.header.stamp;
+        // cmd_clover.header.frame_id = "map";
+
+        // cmd_clover.pose.position.x = cmd.position.x;
+        // cmd_clover.pose.position.y = cmd.position.y;
+        // cmd_clover.pose.position.z = cmd.position.z;
+
+        // tf2::Quaternion myQuaternion;
+        // myQuaternion.setRPY(0, 0, yaw);
+        // myQuaternion=myQuaternion.normalize();
+        // cmd_clover.pose.orientation.x = myQuaternion[0];
+        // cmd_clover.pose.orientation.y = myQuaternion[1];
+        // cmd_clover.pose.orientation.z = myQuaternion[2];
+        // cmd_clover.pose.orientation.w = myQuaternion[3];
+
+        cmd_clover.header.stamp = cmd.header.stamp;
+        cmd_clover.header.frame_id = "map";
+        cmd_clover.coordinate_frame = 1;
+        cmd_clover.position.x = cmd.position.x;
+        cmd_clover.position.y = cmd.position.y;
+        cmd_clover.position.z = cmd.position.z;
+        cmd_clover.velocity = cmd.velocity;
+        cmd_clover.acceleration_or_force = cmd.acceleration;
+        cmd_clover.yaw = cmd.yaw;
+        cmd_clover.yaw_rate = cmd.yaw_dot;
+
+//     if (flag_move_base) {
+// //        cmd_clover.yaw -= cmd_move_base.position;
+//         double delta_x = cmd_move_base.pose.position.x - cmd_clover.position.x;
+//         double delta_y = cmd_move_base.pose.position.y - cmd_clover.position.y;
+//         if (abs(delta_y) > 0.001) {
+//             cout << endl << endl << "!!!!!!!!!!!!!!!!!!!!!![INFO] CMD = " << atan(delta_x / delta_y) << endl << endl;
+// //            cmd_clover.yaw += atan(delta_x / delta_y);
+//             cmd_clover_last.yaw += atan(delta_x / delta_y);
+//             clover_cmd_pub.publish(cmd_clover_last);
+
+//             cmd_last.yaw = cmd_clover_last.yaw;
+//             pos_cmd_pub.publish(cmd_last);
+
+//             clover_cmd_pub.publish(cmd_clover);
+//             traj_cmd_.push_back(pos);
+//             ros::Duration(1.0).sleep();
+//         }
+//         flag_move_base = false;
+//     }
+//     else{
+//         if (mavros_position_sub){
+//             pos_cmd_pub.publish(cmd);
+//             clover_cmd_pub.publish(cmd_clover);
+//             traj_cmd_.push_back(pos);
+//         }
+//     }
+
+        pos_cmd_pub.publish(cmd);
+        clover_cmd_pub.publish(cmd_clover);
+        traj_cmd_.push_back(pos);
+        cmd_clover_last = cmd_clover;
+        cmd_last = cmd;
+
+        if (traj_cmd_.size() > 10000) traj_cmd_.erase(traj_cmd_.begin(), traj_cmd_.begin() + 1000);
+    }
 }
 
 int main(int argc, char** argv) {
@@ -316,6 +372,7 @@ int main(int argc, char** argv) {
     pos_cmd_pub = node.advertise<quadrotor_msgs::PositionCommand>("/position_cmd", 50);
     traj_pub = node.advertise<visualization_msgs::Marker>("planning/travel_traj", 10);
 
+    ros::Subscriber move_base_simple_sub = node.subscribe("/move_base_simple/goal", 10, move_base_simpleCallbck);
     ros::Subscriber flag_mavros_sub = node.subscribe("/flag/mavros/position", 10, flagMavrosPositionCallbck);
     // clover_cmd_pub = node.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 50);
     clover_cmd_pub = node.advertise<mavros_msgs::PositionTarget>("/mavros/setpoint_raw/local", 50);
