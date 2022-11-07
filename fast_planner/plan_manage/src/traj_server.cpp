@@ -9,6 +9,11 @@
 #include <std_msgs/Bool.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include "mavros_msgs/PositionTarget.h"
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/static_transform_broadcaster.h>
+#include <tf/transform_datatypes.h>
+#include <tf2/utils.h>
 
 
 ros::Publisher cmd_vis_pub, pos_cmd_pub, traj_pub;
@@ -16,6 +21,7 @@ ros::Publisher cmd_vis_pub, pos_cmd_pub, traj_pub;
 
 nav_msgs::Odometry odom;
 quadrotor_msgs::PositionCommand cmd;
+
 
 ros::Publisher clover_cmd_pub;
 bool mavros_position_sub = true;
@@ -186,17 +192,11 @@ void visCallback(const ros::TimerEvent& e) {
 
     displayTrajWithColor(traj_cmd_, 0.05, Eigen::Vector4d(0, 1, 0, 1), 2);
 }
-
 void flagMavrosPositionCallbck(const std_msgs::Bool& Reached){
-    mavros_position_sub = Reached.data;
+    mavros_position_sub = Reached.data; // true or fals
 }
 
 void cmdCallback(const ros::TimerEvent& e) {
-    /* no publishing before receive traj_ */
-
-    // clover_cmd_pub  cmd_clover
-
-
     if (!receive_traj_) return;
 
     ros::Time time_now = ros::Time::now();
