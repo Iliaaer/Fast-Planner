@@ -199,20 +199,37 @@ void visCallback(const ros::TimerEvent& e) {
 void move_base_simpleCallbck(const geometry_msgs::PoseStamped& msg) {
     cmd_move_base = msg;
     flag_move_base = true;
-//        cmd_clover.yaw -= cmd_move_base.position;
-    double delta_x = cmd_move_base.pose.position.x - cmd_clover.position.x;
-    double delta_y = cmd_move_base.pose.position.y - cmd_clover.position.y;
-    if (abs(delta_y) > 0.001) {
-        // cout << endl << endl << "!!!!!!!!!!!!!!!!!!!!!![INFO] CMD = " << atan(delta_x / delta_y) << endl << endl;
-        cmd_clover_last.yaw -= atan(delta_x / delta_y);
-        clover_cmd_pub.publish(cmd_clover_last);
+    // double delta_x = cmd_move_base.pose.position.x - cmd_clover.position.x;
+    // double delta_y = cmd_move_base.pose.position.y - cmd_clover.position.y;
+    // if (abs(delta_y) > 0.001) {
+    //     // cout << endl << endl << "!!!!!!!!!!!!!!!!!!!!!![INFO] CMD = " << atan(delta_x / delta_y) << endl << endl;
+    //     cmd_clover_last.yaw -= atan(delta_y / delta_x);
+    //     clover_cmd_pub.publish(cmd_clover_last);
 
-        cmd_last.yaw = cmd_clover_last.yaw;
-        pos_cmd_pub.publish(cmd_last);
+    //     cmd_last.yaw = cmd_clover_last.yaw;
+    //     pos_cmd_pub.publish(cmd_last);
+    // }
 
-        // clover_cmd_pub.publish(cmd_clover);
+
+    if (!receive_traj_) return;
+
+    ros::Time time_now = ros::Time::now();
+    double t_cur = (time_now - start_time_).toSec();
+    double yaw;
+
+    if (t_cur < traj_duration_ && t_cur >= 0.0) {
+        yaw = traj_[3].evaluateDeBoorT(t_cur)[0];
+    } else if (t_cur >= traj_duration_) {
+        yaw = traj_[3].evaluateDeBoorT(traj_duration_)[0];
+    } else {
+        cout << "[Traj server]: invalid time." << endl;
     }
-    // flag_move_base = false;
+    cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! " << yaw << " !!!!!!!!!!!!!!!!!!!! "<< cmd_clover_last.yaw << endl;
+    cmd_clover_last.yaw = yaw;
+    clover_cmd_pub.publish(cmd_clover_last);
+
+    cmd_last.yaw = cmd_clover_last.yaw;
+    pos_cmd_pub.publish(cmd_last);
 }
 
 void flagMavrosPositionCallbck(const std_msgs::Bool& Reached){
@@ -221,7 +238,7 @@ void flagMavrosPositionCallbck(const std_msgs::Bool& Reached){
 
 void cmdCallback(const ros::TimerEvent& e) {
     if (flag_move_base) {
-        ros::Duration(1.0).sleep();
+        ros::Duration(0.5).sleep();
         flag_move_base = false;
     }
     else{
@@ -348,9 +365,11 @@ void cmdCallback(const ros::TimerEvent& e) {
 //         }
 //     }
 
-        pos_cmd_pub.publish(cmd);
-        clover_cmd_pub.publish(cmd_clover);
-        traj_cmd_.push_back(pos);
+        if (mavros_position_sub){
+            pos_cmd_pub.publish(cmd);
+            clover_cmd_pub.publish(cmd_clover);
+            traj_cmd_.push_back(pos);
+        }
         cmd_clover_last = cmd_clover;
         cmd_last = cmd;
 
