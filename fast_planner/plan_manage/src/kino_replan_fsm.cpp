@@ -62,11 +62,15 @@ void KinoReplanFSM::init(ros::NodeHandle& nh) {
   replan_pub_  = nh.advertise<std_msgs::Empty>("/planning/replan", 10);
   new_pub_     = nh.advertise<std_msgs::Empty>("/planning/new", 10);
   bspline_pub_ = nh.advertise<plan_manage::Bspline>("/planning/bspline", 10);
+
+  flag_mavros_pub_ = nh.advertise<std_msgs::Bool>("/fast/flag/position", 10);
 }
 
 void KinoReplanFSM::waypointCallback(const nav_msgs::PathConstPtr& msg) {
   if (msg->poses[0].pose.position.z < -0.1) return;
-
+  std_msgs::Bool flag_mavros;
+  flag_mavros.data = true;
+  flag_mavros_pub_.publish(flag_mavros);
   cout << "Triggered!" << endl;
   trigger_ = true;
 
@@ -116,6 +120,12 @@ void KinoReplanFSM::changeFSMExecState(FSM_EXEC_STATE new_state, string pos_call
 
 void KinoReplanFSM::printFSMExecState() {
   string state_str[5] = { "INIT", "WAIT_TARGET", "GEN_NEW_TRAJ", "REPLAN_TRAJ", "EXEC_TRAJ" };
+
+  if (state_str[int(exec_state_)] == "WAIT_TARGET") {
+    std_msgs::Bool flag_mavros;
+    flag_mavros.data = false;
+    flag_mavros_pub_.publish(flag_mavros);
+  }
 
   cout << "[FSM]: state: " + state_str[int(exec_state_)] << endl;
 }
