@@ -9,6 +9,7 @@
 #include <std_msgs/Bool.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include "mavros_msgs/PositionTarget.h"
+#include <mavros_msgs/SetMode.h>
 
 
 ros::Publisher cmd_vis_pub, pos_cmd_pub, traj_pub;
@@ -18,10 +19,11 @@ nav_msgs::Odometry odom;
 quadrotor_msgs::PositionCommand cmd;
 
 
-ros::Publisher clover_cmd_pub;
-bool mavros_position_sub = true;
-// geometry_msgs::PoseStamped cmd_clover;
-mavros_msgs::PositionTarget cmd_clover;
+ros::Publisher mavros_cmd_pub;
+bool mavros_position_sub = false;
+// geometry_msgs::PoseStamped cmd_mavros;
+mavros_msgs::PositionTarget cmd_mavros;
+ros::ServiceClient setMode;
 
 
 // double pos_gain[3] = {5.7, 5.7, 6.2};
@@ -181,15 +183,11 @@ void odomCallbck(const nav_msgs::Odometry& msg) {
 }
 
 void visCallback(const ros::TimerEvent& e) {
-    // displayTrajWithColor(traj_real_, 0.03, Eigen::Vector4d(0.925, 0.054, 0.964,
-    // 1),
-    //                      1);
-
     displayTrajWithColor(traj_cmd_, 0.05, Eigen::Vector4d(0, 1, 0, 1), 2);
 }
 
 void flagMavrosPositionCallbck(const std_msgs::Bool& Reached){
-    mavros_position_sub = Reached.data; // true or fals
+    mavros_position_sub = Reached.data; // true or fals. true when the drone has flown else false
 }
 
 void cmdCallback(const ros::TimerEvent& e) {
@@ -266,33 +264,39 @@ void cmdCallback(const ros::TimerEvent& e) {
     drawCmd(pos, 2 * dir, 2, Eigen::Vector4d(1, 1, 0, 0.7));
     // drawCmd(pos, pos_err, 3, Eigen::Vector4d(1, 1, 0, 0.7));
 
-    // cmd_clover.header.stamp = cmd.header.stamp;
-    // cmd_clover.header.frame_id = "map";
+    // cmd_mavros.header.stamp = cmd.header.stamp;
+    // cmd_mavros.header.frame_id = "map";
 
-    // cmd_clover.pose.position.x = cmd.position.x;
-    // cmd_clover.pose.position.y = cmd.position.y;
-    // cmd_clover.pose.position.z = cmd.position.z;
+    // cmd_mavros.pose.position.x = cmd.position.x;
+    // cmd_mavros.pose.position.y = cmd.position.y;
+    // cmd_mavros.pose.position.z = cmd.position.z;
 
     // tf2::Quaternion myQuaternion;
     // myQuaternion.setRPY(0, 0, yaw);
     // myQuaternion=myQuaternion.normalize();
-    // cmd_clover.pose.orientation.x = myQuaternion[0];
-    // cmd_clover.pose.orientation.y = myQuaternion[1];
-    // cmd_clover.pose.orientation.z = myQuaternion[2];
-    // cmd_clover.pose.orientation.w = myQuaternion[3];
+    // cmd_mavros.pose.orientation.x = myQuaternion[0];
+    // cmd_mavros.pose.orientation.y = myQuaternion[1];
+    // cmd_mavros.pose.orientation.z = myQuaternion[2];
+    // cmd_mavros.pose.orientation.w = myQuaternion[3];
 
-    cmd_clover.header.stamp = cmd.header.stamp;
-    cmd_clover.header.frame_id = "map";
-    cmd_clover.coordinate_frame = 1;
-    cmd_clover.position.x = cmd.position.x;
-    cmd_clover.position.y = cmd.position.y;
-    cmd_clover.position.z = cmd.position.z;
-    cmd_clover.velocity = cmd.velocity;
-    cmd_clover.acceleration_or_force = cmd.acceleration;
-    cmd_clover.yaw = cmd.yaw;
-    cmd_clover.yaw_rate = cmd.yaw_dot;
+    cmd_mavros.header.stamp = cmd.header.stamp;
+    cmd_mavros.header.frame_id = "map";
+    cmd_mavros.coordinate_frame = 1;
+    cmd_mavros.position.x = cmd.position.x;
+    cmd_mavros.position.y = cmd.position.y;
+    cmd_mavros.position.z = cmd.position.z;
+    cmd_mavros.velocity = cmd.velocity;
+    cmd_mavros.acceleration_or_force = cmd.acceleration;
+    cmd_mavros.yaw = cmd.yaw;
+    cmd_mavros.yaw_rate = cmd.yaw_dot;
 
-    if (mavros_position_sub)    clover_cmd_pub.publish(cmd_clover);
+    static mavros_msgs::SetMode sm;
+	sm.request.custom_mode = "OFFBOARD"; 
+    if (mavros_position_sub) {
+        setMode.call(sm);
+        mavros_cmd_pub.publish(cmd_mavros);
+    }
+    // cout << "message = " << nav_res.message << endl;
 
     traj_cmd_.push_back(pos);
     if (traj_cmd_.size() > 10000) traj_cmd_.erase(traj_cmd_.begin(), traj_cmd_.begin() + 1000);
@@ -312,11 +316,14 @@ int main(int argc, char** argv) {
     pos_cmd_pub = node.advertise<quadrotor_msgs::PositionCommand>("/position_cmd", 50);
     traj_pub = node.advertise<visualization_msgs::Marker>("planning/travel_traj", 10);
 
-    ros::Subscriber flag_mavros_sub = node.subscribe("/flag/mavros/position", 10, flagMavrosPositionCallbck);
-    // clover_cmd_pub = node.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 50);
-    clover_cmd_pub = node.advertise<mavros_msgs::PositionTarget>("/mavros/setpoint_raw/local", 50);
+    ros::Subscriber flag_mavros_sub = node.subscribe("fast/flag/position", 10, flagMavrosPositionCallbck);
+    // mavros_cmd_pub = node.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 50);
+    mavros_cmd_pub = node.advertise<mavros_msgs::PositionTarget>("/mavros/setpoint_raw/local", 50);
+    setMode = node.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
 
-    //
+    // flag_navi_pub = nh.advertise<std_msgs::Bool>("/fast/flag/navi", 10);
+
+
     ros::Timer cmd_timer = node.createTimer(ros::Duration(0.01), cmdCallback);
     ros::Timer vis_timer = node.createTimer(ros::Duration(0.25), visCallback);
 
