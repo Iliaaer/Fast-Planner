@@ -1,29 +1,34 @@
 <?xml version="1.0"?>
-<package format="3">
-  <name>Fast_drone</name>
-  <version>0.23.0</version>
-  <description>The Fast package</description>
+<package format="2">
+  <name>fast_drone</name>
+  <version>0.0.0</version>
+  <description>The fast_drone package</description>
 
-  <maintainer email="zarubinilia@yandex.ru">Ilya Zarubin</maintainer>
-  <license>MIT</license>
+  <maintainer email="zarubinilia@yandex.ru">iliaaer</maintainer>
 
+  <license>TODO</license>
 
-  <author email="zarubinilia@yandex.ru">Ilya Zarubin</author>
 
   <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>message_runtime</build_depend>
+  
 
-  <!-- Package format specifier version 2.0 allows specifying dependencies for both
-   build- and runtime in a single <depend> element -->
-  <depend>message_generation</depend>
-  <depend>roscpp</depend>
-  <depend>rospy</depend>
-  <depend>std_srvs</depend>
-  <depend>std_msgs</depend>
+  <build_export_depend>roscpp</build_export_depend>
+  <build_export_depend>std_msgs</build_export_depend>
+
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>message_runtime</exec_depend>
+
   <depend>geometry_msgs</depend>
-  <depend>sensor_msgs</depend>
-  <depend>visualization_msgs</depend>
   <depend>geographiclib</depend>
-  <depend>nodelet</depend>
   <depend>mavros</depend>
   <depend>mavros_extras</depend>
+
+  
+  <export>
+
+  </export>
 </package>
