@@ -11,8 +11,8 @@
 #include <mavros_msgs/StatusText.h>
 #include <std_srvs/Trigger.h>
 
-#include "Fast_drone/takeoff.h"
-#include "Fast_drone/publishPose.h"
+#include "fast_drone/takeoff.h"
+#include "fast_drone/publishPose.h"
 
 
 ros::ServiceClient arming, set_mode;
@@ -42,10 +42,6 @@ void offboardAndArm() {
 	ros::spinOnce();
 }
 
-// void callback(const geometry_msgs::PoseStamped& cmd){
-//     already = false;
-// }
-
 void navi(double x, double y, double z, std::string farme_id) {
     ros::Time time_now = ros::Time::now();
     position_msg.header.stamp = time_now;
@@ -73,7 +69,7 @@ bool land (std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res) {
 	return true;
 }
 
-bool takeOff (Fast_drone::takeoff::Request& req, Fast_drone::takeoff::Response& res) {
+bool takeOff (fast_drone::takeoff::Request& req, fast_drone::takeoff::Response& res) {
 	ros::Rate rate(20.0);
 	for(int i = 150; ros::ok() && i > 0; --i){
         navi(0, 0, req.z, "body");
@@ -89,7 +85,7 @@ bool takeOff (Fast_drone::takeoff::Request& req, Fast_drone::takeoff::Response& 
 	return true;
 }
 
-bool publishPose (Fast_drone::publishPose::Request& req, Fast_drone::publishPose::Response& res) {
+bool publishPose (fast_drone::publishPose::Request& req, fast_drone::publishPose::Response& res) {
     ros::Time time_now = ros::Time::now();
     move_base_msg.header.stamp = time_now;
     move_base_msg.header.frame_id = "map";
@@ -115,8 +111,7 @@ int main(int argc, char **argv) {
 
     position_pub = nh.advertise<geometry_msgs::PoseStamped>("mavros/setpoint_position/local", 1);
 	position_raw_pub = nh.advertise<mavros_msgs::PositionTarget>("mavros/setpoint_raw/local", 1);
-
-    // ros::Subscriber move_base = nh.subscribe("move_base_simple/goal", 10, callback);
+    
     move_base_pub = nh.advertise<geometry_msgs::PoseStamped>("move_base_simple/goal", 1);
 
 	
