@@ -1,0 +1,24 @@
+mkdir -p ~/catkin_ws/src
+cd ~/catkin_ws
+catkin_make
+echo "source ~/catkin_ws/devel/setup.bash" >> ~/.bashrc
+source ~/.bashrc
+cd ~/catkin_ws/src
+git clone --depth 1 https://github.com/CopterExpress/clover
+git clone --depth 1 https://github.com/CopterExpress/ros_led
+git clone --depth 1 https://github.com/ethz-asl/mav_comm
+cd ~/catkin_ws
+rosdep install --from-paths src --ignore-src -y
+sudo /usr/bin/python3 -m pip install -r ~/catkin_ws/src/clover/clover/requirements.txt
+cd ~/catkin_ws/src
+git clone --recursive --depth 1 --branch v1.12.3 https://github.com/PX4/PX4-Autopilot.git ~/PX4-Autopilot
+ln -s ~/PX4-Autopilot ~/catkin_ws/src/
+ln -s ~/PX4-Autopilot/Tools/sitl_gazebo ~/catkin_ws/src/
+ln -s ~/PX4-Autopilot/mavlink ~/catkin_ws/src/
+cd ~/catkin_ws/src/PX4-Autopilot/Tools/setup
+sudo ./ubuntu.sh
+pip3 install --user toml
+ln -s ~/catkin_ws/src/clover/clover_simulation/airframes/* ~/PX4-Autopilot/ROMFS/px4fmu_common/init.d-posix/airframes/
+sudo /opt/ros/noetic/lib/mavros/install_geographiclib_datasets.sh
+cd ~/catkin_ws
+catkin_make
