@@ -1,22 +1,18 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 2.8.3)
+project(fast_drone)
 
-project(Fast_drone)
-
-add_compile_options(-std=c++11)
+set(CMAKE_BUILD_TYPE "Release")
+set(CMAKE_CXX_FLAGS "-std=c++14")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g")
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
-  genmsg
   std_msgs
-  message_generation
   geometry_msgs
-  sensor_msgs
+  message_generation
   geographic_msgs
-  tf
-  tf2
-  tf2_geometry_msgs
-  tf2_ros
 )
+
 add_service_files(
   FILES
   takeoff.srv
@@ -29,6 +25,7 @@ generate_messages(
 )
 
 include_directories(
+  include
   ${catkin_INCLUDE_DIRS}
 )
 
